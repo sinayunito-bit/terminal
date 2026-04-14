@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Portfolio - Ultimate Edition</title>
+    <style>
+        /* --- 1. VISUAL & ESTETIKA (UI) --- */
+        :root {
+            --bg-color: #050505;
+            --text-color: #39FF14;
+            --amber: #FFBF00;
+            --white: #FFFFFF;
+            --red: #FF3333;
+            --font-main: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            font-size: 15px;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Scanline & Flicker (CRT Overlay) */
+        .crt::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 99;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .crt::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: rgba(57, 255, 20, 0.03);
+            opacity: 0;
+            z-index: 99;
+            pointer-events: none;
+            animation: flicker 0.15s infinite;
+        }
+
+        @keyframes flicker {
+            0% {
+                opacity: 0.02;
+            }
+
+            50% {
+                opacity: 0.05;
+            }
+
+            100% {
+                opacity: 0.02;
+            }
+        }
+
+        /* Glitch Effect (Saat error) */
+        .glitch-active {
+            animation: glitch-anim 0.3s linear;
+            color: var(--red) !important;
+        }
+
+        @keyframes glitch-anim {
+            0% {
+                transform: translate(0)
+            }
+
+            20% {
+                transform: translate(-5px, 2px)
+            }
+
+            40% {
+                transform: translate(-2px, -5px)
+            }
+
+            60% {
+                transform: translate(5px, 2px)
+            }
+
+            80% {
+                transform: translate(2px, -2px)
+            }
+
+            100% {
+                transform: translate(0)
+            }
+        }
+
+        /* System Info Bar */
+        #sys-info {
+            background: var(--text-color);
+            color: var(--bg-color);
+            padding: 5px 15px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 14px;
+            z-index: 3;
+        }
+
+        /* Container Utama */
+        #terminal {
+            width: 100%;
+            max-width: 900px;
+            padding: 20px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 3;
+            flex-grow: 1;
+        }
+
+        #output {
+            margin-bottom: 10px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .input-line {
+            display: flex;
+            align-items: center;
+            opacity: 0;
+        }
+
+        .input-line.visible {
+            opacity: 1;
+        }
+
+        .prompt {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .prompt-user {
+            color: #8AE234;
+            /* Ubuntu Green */
+        }
+
+        .prompt-dir {
+            color: #729FCF;
+            /* Ubuntu Blue */
+        }
+
+        input[type="text"] {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-family: var(--font-main);
+            font-size: 15px;
+            flex-grow: 1;
+            outline: none;
+        }
+
+        /* Colors */
+        .color-amber {
+            color: var(--amber);
+        }
+
+        .color-white {
+            color: var(--white);
+        }
+
+        .color-red {
+            color: var(--red);
+        }
+
+        /* Retro Modal (Image Viewer) */
+        #retro-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            background: var(--bg-color);
+            border: 2px solid var(--text-color);
+            box-shadow: 0 0 15px var(--text-color);
+            z-index: 100;
+            padding: 2px;
+        }
+
+        #retro-modal-header {
+            background: var(--text-color);
+            color: var(--bg-color);
+            padding: 5px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #retro-modal-content {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .modal-img-placeholder {
+            width: 100%;
+            height: 200px;
+            border: 1px dashed var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body class="crt" id="body">
+
+    <div id="sys-info">
+        <span id="os-info">OS: UNKNOWN</span>
+        <span id="clock">00:00:00</span>
+    </div>
+
+    <div id="terminal">
+        <div id="output"></div>
+        <div class="input-line" id="input-container">
+            <span class="prompt"><span class="prompt-user">euro@ubuntu-v25</span>:<span
+                    class="prompt-dir">~</span>$</span>
+            <input type="text" id="cmd" autocomplete="off" spellcheck="false" autofocus>
+        </div>
+    </div>
+
+    <div id="retro-modal">
+        <div id="retro-modal-header">
+            <span id="modal-title">IMAGE_VIEWER.EXE</span>
+            <span>[ESC to close]</span>
+        </div>
+        <div id="retro-modal-content">
+            <div class="modal-img-placeholder" id="modal-image">
+                [ LOADING IMAGE DATA... ]
+            </div>
+            <p id="modal-desc">Press ESC to return to terminal.</p>
+        </div>
+    </div>
+
+    <script>
+        console.log("%cSTOP! Kamu sedang melihat rahasia dapur saya.", "color: red; font-size: 20px; font-weight: bold;");
+        console.log("%cTertarik bekerja sama? Ketik 'hire-me' di terminal web tadi!", "color: #39FF14; font-size: 14px;");
+
+        const terminalOutput = document.getElementById('output');
+        const cmdInput = document.getElementById('cmd');
+        const inputContainer = document.getElementById('input-container');
+        const body = document.getElementById('body');
+
+        // --- STATE & DATA ---
+        let commandHistory = [];
+        let historyIndex = -1;
+        let isProcessing = false; // Mencegah spam enter
+
+        const fileSystem = {
+            'about.txt': "Nama              : Euro Juanito Wijaya\nTanggal lahir     : 8 Juni 2008\nSekolah           : SMK N 2 Yogyakarta\nAlamat            : Kragilan, Tamanan, Banguntapan, Bantul",
+            'projects': {
+                'gas-detector.md': "[RAW]Title: Automated Gas Detector\n\n<img src='gas1.jpg' alt='Dokumentasi Gas Detector' style='border: 1px dashed var(--text-color); margin-top: 10px; max-width: 100%; display: block;'><img src='gas2.jpg' alt='Dokumentasi Gas Detector' style='border: 1px dashed var(--text-color); margin-top: 10px; max-width: 100%; display: block;'><img src='gas3.jpg' alt='Dokumentasi Gas Detector' style='border: 1px dashed var(--text-color); margin-top: 10px; max-width: 100%; display: block;'>\n<br><i>[ System Note: Ganti URL src pada file konfigurasi dengan foto aslimu (misal: img/foto1.jpg) ]</i>",
+                'otb.md': "[RAW]title: LXC Server Config\n\n<img src='otb1.jpg' alt='Dokumentasi otb' style='border: 1px dashed var(--text-color); margin-top: 10px; max-width: 100%; display: block;'><img src='otb2.jpg' alt='Dokumentasi otb' style='border: 1px dashed var(--text-color); margin-top: 10px; max-width: 100%; display: block;'><img src='otb3.jpg' alt='Dokumentasi otb' style='border: 1px dashed var(--text-color); margin-top: 10px; max-width: 100%; display: block;'>\n<br><i>[ System Note: Ganti URL src pada file konfigurasi dengan foto aslimu (misal: img/foto1.jpg) ]</i>",
+            },
+            'skills.sh': "Jaringan : [################----] 80%\nSoftware : [##############------] 70%",
+            'contact.log': "EMAIL: sinayunito@gmail.com\nGITHUB: github.com/euro",
+        };
+
+        const commandsList = ['help', 'ls', 'ls projects/', 'cat about.txt', 'cat skills.sh', 'cat contact.log', 'clear', 'whoami', 'get cv.pdf', 'view --image'];
+
+        // --- FITUR 2: REAL-TIME CLOCK & SYS INFO ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString('id-ID');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        document.getElementById('os-info').innerText = `USER: EURO | SYS: Ubuntu 25.04`;
+
+        // --- FITUR 2: TYPEWRITER EFFECT ---
+        async function typeWriterEffect(text, speed = 10, isError = false) {
+            let tempSpan = document.createElement('span');
+            if (isError) tempSpan.className = 'color-red';
+            terminalOutput.appendChild(tempSpan);
+
+            for (let i = 0; i < text.length; i++) {
+                tempSpan.innerHTML += text.charAt(i);
+                window.scrollTo(0, document.body.scrollHeight);
+                await new Promise(r => setTimeout(r, speed));
+            }
+            terminalOutput.innerHTML += '<br>';
+        }
+
+        // Print Instan (untuk formatting HTML)
+        function printOutput(text) {
+            terminalOutput.innerHTML += `${text}<br>`;
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        // --- BOOT SEQUENCE ---
+        const bootLines = [
+            "Initiating BIOS...",
+            "Loading memory sectors... [OK]",
+            "Mounting virtual file system... [OK]",
+            "<span class='color-amber'>System ready. Type 'help' to view commands.</span><br>"
+        ];
+
+        async function bootSequence() {
+            isProcessing = true;
+            for (let line of bootLines) {
+                printOutput(line);
+                await new Promise(r => setTimeout(r, 200));
+            }
+            inputContainer.classList.add('visible');
+            cmdInput.focus();
+            isProcessing = false;
+        }
+
+        // --- FITUR 3: PROGRESS BAR DOWNLOAD ---
+        async function downloadCV() {
+            isProcessing = true;
+            inputContainer.classList.remove('visible');
+            printOutput("Connecting to secure server...");
+
+            let progressBar = document.createElement('div');
+            progressBar.className = 'color-amber';
+            terminalOutput.appendChild(progressBar);
+
+            for (let i = 0; i <= 20; i++) {
+                let hashes = '#'.repeat(i);
+                let dashes = '-'.repeat(20 - i);
+                let percent = i * 5;
+                progressBar.innerHTML = `Downloading cv.pdf: [${hashes}${dashes}] ${percent}%`;
+                window.scrollTo(0, document.body.scrollHeight);
+                await new Promise(r => setTimeout(r, 100)); // Animasi loading
+            }
+
+            terminalOutput.innerHTML += "<br><span class='color-white'>Download complete! (Simulated)</span><br>";
+            inputContainer.classList.add('visible');
+            cmdInput.focus();
+            isProcessing = false;
+        }
+
+        // --- LOGIKA UTAMA PERINTAH ---
+        window.processCommand = async function (cmdStr) {
+            if (isProcessing) return;
+            const command = cmdStr.trim();
+            if (!command) return;
+
+            // Fitur 1: Simpan ke History
+            commandHistory.push(command);
+            historyIndex = commandHistory.length;
+
+            printOutput(`<br><span class="prompt"><span class="prompt-user">euro@ubuntu-v25</span>:<span class="prompt-dir">~</span>$</span> ${command}`);
+            const args = command.toLowerCase().split(' ');
+
+            isProcessing = true;
+
+            switch (args[0]) {
+                case 'help':
+                    printOutput("<span class='color-amber'>help</span>         - Show this menu");
+                    printOutput("<span class='color-amber'>ls</span>           - List files");
+                    printOutput("<span class='color-amber'>cat [file]</span>   - Read a file");
+                    printOutput("<span class='color-amber'>whoami</span>       - Display ASCII Profile");
+                    printOutput("<span class='color-amber'>get cv.pdf</span>   - Download Resume");
+                    printOutput("<span class='color-amber'>view --image</span> - Open visual showcase");
+                    printOutput("<span class='color-amber'>clear</span>        - Clear terminal");
+                    break;
+                case 'ls':
+                    if (args.length === 1) {
+                        printOutput("<span class='color-white'>projects/  about.txt  skills.sh  contact.log</span>");
+                    } else if (args[1] === 'projects/' || args[1] === 'projects') {
+                        const projectFiles = Object.keys(fileSystem['projects']).join('  ');
+                        printOutput(`<span class='color-white'>${projectFiles}</span>`);
+                    } else {
+                        triggerGlitch();
+                        printOutput(`<span class="color-red">ls: cannot access '${args[1]}': No such file or directory</span>`);
+                    }
+                    break;
+                case 'cat':
+                    const renderContent = async (content) => {
+                        if (content.startsWith('[RAW]')) {
+                            printOutput(content.replace('[RAW]', ''));
+                        } else {
+                            await typeWriterEffect(content, 5); // Animasi ketik cepat
+                        }
+                    };
+
+                    if (!args[1]) {
+                        printOutput("cat: missing file operand");
+                    } else if (fileSystem[args[1]] && typeof fileSystem[args[1]] === 'string') {
+                        await renderContent(fileSystem[args[1]]);
+                    } else if (args[1] === 'projects/' || args[1] === 'projects') {
+                        triggerGlitch();
+                        await typeWriterEffect(`cat: ${args[1]}: Is a directory`, 10, true);
+                    } else if (args[1].startsWith('projects/')) {
+                        const fileName = args[1].replace('projects/', '');
+                        if (fileSystem['projects'][fileName]) {
+                            await renderContent(fileSystem['projects'][fileName]);
+                        } else {
+                            triggerGlitch();
+                            await typeWriterEffect(`cat: ${args[1]}: No such file`, 10, true);
+                        }
+                    } else {
+                        triggerGlitch();
+                        await typeWriterEffect(`cat: ${args[1] || ''}: No such file`, 10, true);
+                    }
+                    break;
+                case 'whoami':
+                    // FITUR 3: ASCII ART
+                    const asciiArt = `
+  _____ _   _ ____   ___  
+ | ____| | | |  _ \\ / _ \\ 
+ |  _| | | | | |_) | | | |
+ | |___| |_| |  _ <| |_| |
+ |_____|\\___/|_| \\_\\\\___/ 
+ <span class="color-amber">Role: Engineering and Programmer</span>`;
+                    printOutput(asciiArt);
+                    break;
+                case 'get':
+                    if (args[1] === 'cv.pdf') await downloadCV();
+                    else { triggerGlitch(); printOutput("<span class='color-red'>File not found on server.</span>"); }
+                    break;
+                case 'view':
+                    if (args[1] === '--image') openModal();
+                    else { triggerGlitch(); printOutput("<span class='color-red'>Usage: view --image [project_name]</span>"); }
+                    break;
+                case 'clear':
+                    terminalOutput.innerHTML = '';
+                    break;
+                // --- SECRET COMMANDS ---
+                case 'sudo':
+                    triggerGlitch();
+                    await typeWriterEffect(`euro is not in the sudoers file. This incident will be reported.`, 20, true);
+                    break;
+                case 'hack':
+                    inputContainer.classList.remove('visible');
+                    for (let i = 0; i <= 100; i += 25) {
+                        printOutput(`<span class="color-amber">Accessing NASA Mainframe... ${i}%</span>`);
+                        await new Promise(r => setTimeout(r, 300));
+                    }
+                    triggerGlitch();
+                    printOutput(`<span class="color-red">Access denied. Just kidding, I'm just a portfolio! 😉</span>`);
+                    inputContainer.classList.add('visible');
+                    cmdInput.focus();
+                    break;
+                case 'hire-me':
+                    inputContainer.classList.remove('visible');
+                    printOutput(`
+<pre class="color-amber">
+    .    *  .    .  
+  *   .   *   .    
+.   *  .  .  *   . 
+  🎉 HIRE ME! 🎉 
+.   *  .  .  *   . 
+  *   .   *   .    
+</pre>`);
+                    await typeWriterEffect("Preparing Cover Letter & Resume for recruiter...", 20);
+                    printOutput("<span class='color-white'>Downloading hire_me_euro.pdf... (Simulated)</span>");
+                    inputContainer.classList.add('visible');
+                    cmdInput.focus();
+                    break;
+                case 'dance':
+                    inputContainer.classList.remove('visible');
+                    const danceFrames = ["(>'-')>", "<('-'<)", "^('-')^", "v('-')v"];
+                    let danceSpan = document.createElement('span');
+                    danceSpan.className = 'color-amber';
+                    terminalOutput.appendChild(danceSpan);
+
+                    for (let i = 0; i < 15; i++) {
+                        danceSpan.innerText = " " + danceFrames[i % danceFrames.length];
+                        window.scrollTo(0, document.body.scrollHeight);
+                        await new Promise(r => setTimeout(r, 400));
+                    }
+                    danceSpan.innerHTML += " <span class='color-white'>*phew*</span><br>";
+                    inputContainer.classList.add('visible');
+                    cmdInput.focus();
+                    break;
+                case 'color':
+                    if (!args[1] || args[1] === '') {
+                        printOutput("<span class='color-red'>Usage: color [color_name]</span>");
+                    } else if (args[1] === 'matrix' || args[1] === 'reset') {
+                        document.documentElement.style.setProperty('--text-color', '#39FF14');
+                        printOutput("Color reset to Matrix Green.");
+                    } else if (args[1] === 'invisible') {
+                        document.documentElement.style.setProperty('--text-color', 'transparent');
+                        printOutput("Whoops...");
+                    } else {
+                        document.documentElement.style.setProperty('--text-color', args[1]);
+                        printOutput(`Color changed to ${args[1]}.`);
+                    }
+                    break;
+                case 'self-destruct':
+                    inputContainer.classList.remove('visible');
+                    for (let i = 3; i > 0; i--) {
+                        printOutput(`<span class="color-red" style="font-size: 1.5em; font-weight: bold;">WARNING: CORE INITIATING SELF-DESTRUCT IN ${i}...</span>`);
+                        triggerGlitch();
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+                    document.body.style.transition = 'all 2s ease';
+                    document.body.style.filter = 'blur(10px) contrast(5)';
+                    document.body.style.opacity = '0';
+                    document.body.style.transform = 'scale(0.9)';
+                    setTimeout(() => location.reload(), 4000);
+                    break;
+                default:
+                    triggerGlitch(); // FITUR 2: GLITCH JIKA ERROR
+                    await typeWriterEffect(`bash: ${command}: command not found`, 15, true);
+            }
+
+            isProcessing = false;
+            window.scrollTo(0, document.body.scrollHeight);
+        };
+
+        // --- FITUR 2: GLITCH EFFECT ---
+        function triggerGlitch() {
+            body.classList.add('glitch-active');
+            setTimeout(() => body.classList.remove('glitch-active'), 300);
+        }
+
+        // --- FITUR 3: RETRO MODAL (IMAGE VIEWER) ---
+        const modal = document.getElementById('retro-modal');
+        function openModal() {
+            modal.style.display = 'block';
+            inputContainer.classList.remove('visible');
+        }
+        function closeModal() {
+            modal.style.display = 'none';
+            inputContainer.classList.add('visible');
+            cmdInput.focus();
+        }
+
+        // --- FITUR 1: AUTOCOMPLETE & HISTORY CONTROLS ---
+        cmdInput.addEventListener('keydown', function (e) {
+            if (isProcessing) {
+                e.preventDefault();
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                processCommand(this.value);
+                this.value = '';
+            }
+            // Auto-complete (Tab)
+            else if (e.key === 'Tab') {
+                e.preventDefault();
+                const currentInput = this.value.toLowerCase();
+                const match = commandsList.find(cmd => cmd.startsWith(currentInput));
+                if (match) this.value = match;
+            }
+            // Command History (Panah Atas)
+            else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    this.value = commandHistory[historyIndex];
+                }
+            }
+            // Command History (Panah Bawah)
+            else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    this.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    this.value = '';
+                }
+            }
+            // Close Modal (ESC)
+            else if (e.key === 'Escape' && modal.style.display === 'block') {
+                closeModal();
+            }
+        });
+
+        document.addEventListener('click', () => {
+            if (!isProcessing && modal.style.display !== 'block') cmdInput.focus();
+        });
+
+        // --- IDLE GHOST LOOP ---
+        let idleTimer;
+        function resetIdleTimer() {
+            clearTimeout(idleTimer);
+            if (!isProcessing && !snakeActive && !isMatrixActive) {
+                idleTimer = setTimeout(() => {
+                    const msgs = [
+                        "Psst... are you still there?",
+                        "I'm getting bored, try typing 'matrix'!",
+                        "System idle. Dreaming of electric sheep...",
+                        "Ghost in the shell activated..."
+                    ];
+                    const msg = msgs[Math.floor(Math.random() * msgs.length)];
+                    typeWriterEffect(`\n<span class="color-amber">[GHOST] ${msg}</span>`, 20);
+                    resetIdleTimer();
+                }, 30000);
+            }
+        }
+        window.addEventListener('keydown', resetIdleTimer);
+        window.addEventListener('mousemove', resetIdleTimer);
+
+        window.onload = () => {
+            bootSequence();
+            resetIdleTimer();
+        };
+    </script>
+</body>
+
+</html>
