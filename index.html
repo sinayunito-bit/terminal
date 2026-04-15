@@ -230,6 +230,12 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* --- FITUR SPACING --- */
+        .wide-spacing {
+            letter-spacing: 12px;
+            transition: letter-spacing 0.5s ease;
+        }
     </style>
 </head>
 
@@ -275,6 +281,7 @@
         let commandHistory = [];
         let historyIndex = -1;
         let isProcessing = false; // Mencegah spam enter
+        let typingSpeedMultiplier = 1; // 1 = Normal, 0 = Fast, 10+ = Slow
 
         const fileSystem = {
             'about.txt': "Nama              : Euro Juanito Wijaya\nTanggal lahir     : 8 Juni 2008\nSekolah           : SMK N 2 Yogyakarta\nAlamat            : Kragilan, Tamanan, Banguntapan, Bantul",
@@ -304,10 +311,17 @@
             if (isError) tempSpan.className = 'color-red';
             terminalOutput.appendChild(tempSpan);
 
-            for (let i = 0; i < text.length; i++) {
-                tempSpan.innerHTML += text.charAt(i);
+            let actualSpeed = speed * typingSpeedMultiplier;
+
+            if (actualSpeed === 0) {
+                tempSpan.innerHTML = text; // Langsung tampil untuk fast mode
                 window.scrollTo(0, document.body.scrollHeight);
-                await new Promise(r => setTimeout(r, speed));
+            } else {
+                for (let i = 0; i < text.length; i++) {
+                    tempSpan.innerHTML += text.charAt(i);
+                    window.scrollTo(0, document.body.scrollHeight);
+                    await new Promise(r => setTimeout(r, actualSpeed));
+                }
             }
             terminalOutput.innerHTML += '<br>';
         }
@@ -450,6 +464,26 @@
                     terminalOutput.innerHTML = '';
                     break;
                 // --- SECRET COMMANDS ---
+                case 'slow':
+                    typingSpeedMultiplier = 15;
+                    printOutput("<span class='color-amber'>System clock downclocked. Typing speed set to SLOW.</span>");
+                    break;
+                case 'fast':
+                    typingSpeedMultiplier = 0;
+                    printOutput("<span class='color-amber'>Overclocking system... Typing speed set to FAST (instant).</span>");
+                    break;
+                case 'normal':
+                    typingSpeedMultiplier = 1;
+                    printOutput("<span class='color-amber'>System clock restored. Typing speed set to NORMAL.</span>");
+                    break;
+                case 'spacing':
+                    document.body.classList.toggle('wide-spacing');
+                    if (document.body.classList.contains('wide-spacing')) {
+                        printOutput("<span class='color-amber'>A e s t h e t i c  S p a c i n g  A c t i v a t e d .</span>");
+                    } else {
+                        printOutput("<span class='color-amber'>Spacing normalized.</span>");
+                    }
+                    break;
                 case 'sudo':
                     triggerGlitch();
                     await typeWriterEffect(`euro is not in the sudoers file. This incident will be reported.`, 20, true);
